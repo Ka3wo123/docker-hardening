@@ -1,0 +1,24 @@
+# BAD EXAMPLE - lack of security Dockerfile
+
+FROM ubuntu:latest
+
+USER root
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    netcat \
+    python3 \
+    && apt-get clean
+
+ENV DB_PASSWORD=supersecretpassword123
+ENV API_KEY=sk-1234567890abcdef
+ENV AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
+COPY . /app
+
+WORKDIR /app
+
+CMD ["python3", "-m", "http.server", "8080"]
+
+EXPOSE 8080 22 3306 5432

@@ -1,0 +1,59 @@
+# GOOD EXAMPLE - Dockerfile suitable with security policies
+
+FROM docker.io/library/python:3.12.3-slim-bookworm AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt \
+    && pip install --no-cache-dir pip-audit==2.7.3
+
+FROM docker.io/library/python:3.12.3-slim-bookworm AS final
+
+LABEL org.opencontainers.image.title="Secure App" \
+      org.opencontainers.image.description="Example of container that fulfills security policies" \
+      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.vendor="Example Corp" \
+      maintainer="security@example.com"
+
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        tini=0.19.0+ds1-1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* /var/tmp/*
+
+RUN groupadd --gid 10001 appgroup \
+    && useradd --uid 10001 --gid appgroup \
+       --no-create-home --shell /sbin/nologin \
+       appuser
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+
+RUN mkdir -p /app/data /app/logs /app/tmp \
+    && chown -R appuser:appgroup /app \
+    && chmod -R 550 /app \
+    && chmod -R 770 /app/data /app/logs /app/tmp
+
+WORKDIR /app
+
+COPY --chown=appuser:appgroup src/ .
+
+USER 10001:10001
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" || exit 1
+
+# reaps zombies and performs signal forwarding
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+CMD ["python3", "-m", "http.server", "8080"]

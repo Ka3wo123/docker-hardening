@@ -1,0 +1,104 @@
+---
+# Polityka Kyverno: Ograniczenie Linux Capabilities w kontenerach
+# CIS Docker Benchmark 5.03 - Ensure that Linux kernel capabilities are restricted within containers
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-capabilities
+  annotations:
+    policies.kyverno.io/title: Ogranicz Linux Capabilities
+    policies.kyverno.io/category: Docker Security Best Practices
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/subject: Pod, Container
+    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/description: >-
+      Linux capabilities dają uprzywilejowany dostęp do zasobów kernela.
+      Kontenery powinny mieć zrzucone (drop) ALL capabilities i dodawać (add)
+      tylko te absolutnie niezbędne. Szczególnie niebezpieczne capabilities:
+      SYS_ADMIN, NET_ADMIN, SYS_PTRACE, DAC_OVERRIDE.
+    audit-controls: "CIS-5.3, NIST-AC-6, PCI-DSS-6.3"
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-drop-all
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Kontener MUSI jawnie zrzucić ALL capabilities.
+          Dodaj: securityContext.capabilities.drop: [ALL]
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  capabilities:
+                    drop:
+                      - ALL
+            =(initContainers):
+              - securityContext:
+                  capabilities:
+                    drop:
+                      - ALL
+
+    - name: block-dangerous-capabilities
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Wykryto niebezpieczne capabilities! Następujące capabilities są ZAKAZANE:
+          SYS_ADMIN, NET_ADMIN, SYS_PTRACE, SYS_MODULE, DAC_OVERRIDE,
+          DAC_READ_SEARCH, FOWNER, SETUID, SETGID, NET_RAW, SYS_RAWIO.
+          Sprawdź: securityContext.capabilities.add w definicji kontenera.
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.containers[].securityContext.capabilities.add[] }}"
+                operator: AnyIn
+                value:
+                  - SYS_ADMIN
+                  - NET_ADMIN
+                  - SYS_PTRACE
+                  - SYS_MODULE
+                  - DAC_OVERRIDE
+                  - DAC_READ_SEARCH
+                  - FOWNER
+                  - NET_RAW
+                  - SYS_RAWIO
+                  - MKNOD
+                  - AUDIT_WRITE
+                  - SYS_CHROOT
+              - key: "{{ request.object.spec.initContainers[].securityContext.capabilities.add[] }}"
+                operator: AnyIn
+                value:
+                  - SYS_ADMIN
+                  - NET_ADMIN
+                  - SYS_PTRACE
+                  - SYS_MODULE
+                  - DAC_OVERRIDE
+                  - NET_RAW
+
+    - name: allowed-capabilities-only
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Tylko zatwierdzone capabilities są dozwolone: NET_BIND_SERVICE, CHOWN, SETPCAP.
+          Wszystkie inne muszą być jawnie usunięte przez drop: ALL.
+        pattern:
+          spec:
+            containers:
+              - =(securityContext):
+                  =(capabilities):
+                    =(add):
+                      - "NET_BIND_SERVICE | CHOWN | SETPCAP"

@@ -1,0 +1,67 @@
+---
+# Kyverno policy: Blocking containers running as roots
+# CIS Docker Benchmark 5.01 - Ensure that, if applicable, an AppArmor Profile is enabled
+# CIS Docker Benchmark 4.01 - Ensure that a user for the container has been created
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-root-user
+  annotations:
+    policies.kyverno.io/title: Block user in root containers
+    policies.kyverno.io/category: Docker Security Best Practices
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod, Container
+    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/description: >-
+      Containers should not be launched as root (UID 0).
+      Running as root increases privilege escalation risk and access to sensitive host resources.
+      Policy forces launching as non-root user UID >= 1000.      
+    audit-controls: "CIS-4.1, CIS-5.1, NIST-AC-6, PCI-DSS-7.1"
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-runasnonroot
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Container must be launched as non-root user.          
+          Set securityContext.runAsNonRoot=true and securityContext.runAsUser >= 1000.
+          Current: {{ request.object.spec.containers[].securityContext.runAsUser }}
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+            =(initContainers):
+              - securityContext:
+                  runAsNonRoot: true
+                  runAsUser: ">= 1000"
+            containers:
+              - securityContext:
+                  runAsNonRoot: true
+                  runAsUser: ">= 1000"
+
+    - name: check-no-root-uid
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Container cannot be launched as root UID 0.
+          Use runAsUser with value >= 1000.
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.securityContext.runAsUser }}"
+                operator: Equals
+                value: 0
+              - key: "{{ request.object.spec.containers[].securityContext.runAsUser }}"
+                operator: AnyIn
+                value: [0]

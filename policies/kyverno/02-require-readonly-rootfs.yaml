@@ -1,0 +1,49 @@
+---
+# Kyverno policy: Enforcing read-only filesystem in containers
+# CIS Docker Benchmark 5.12 - Ensure that the container's root filesystem is mounted as read only
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-readonly-rootfs
+  annotations:
+    policies.kyverno.io/title: Enforce read-only root filesystem
+    policies.kyverno.io/category: Docker Security Best Practices
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod, Container
+    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/description: >-
+      System plików kontenera powinien być zamontowany jako read-only (readOnlyRootFilesystem: true).
+      Zapobiega to modyfikacji systemu plików przez potencjalnie złośliwy kod.
+      Aplikacje które potrzebują zapisu powinny używać emptyDir lub PersistentVolumes
+      dla konkretnych ścieżek.
+    audit-controls: "CIS-5.12, NIST-CM-7, PCI-DSS-6.6"
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-readonly-filesystem
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - cert-manager
+      validate:
+        message: >-
+          Kontener MUSI mieć read-only root filesystem.
+          Dodaj: securityContext.readOnlyRootFilesystem: true
+          Dla zapisu danych użyj volumeMounts z emptyDir lub PVC.
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true
+            =(initContainers):
+              - securityContext:
+                  readOnlyRootFilesystem: true

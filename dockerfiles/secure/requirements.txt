@@ -1,0 +1,3 @@
+# requirements.txt - Pin dependencies with hashes -> pip-compile --generate-hashes requirements.txt -o requirements.out
+flask==3.0.2
+

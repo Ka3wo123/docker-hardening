@@ -1,0 +1,51 @@
+# trivy.yaml - Config file for Trivy scanner
+# Documentation: https://aquasecurity.github.io/trivy/latest/docs/references/configuration/
+
+quiet: false
+debug: false
+insecure: false
+
+cache:
+  dir: /tmp/trivy-cache
+  ttl: 24h
+
+timeout: 10m
+
+image:  
+  removed-pkgs: true  
+  platform: linux/amd64
+
+vulnerability:
+  severity:
+    - CRITICAL
+    - HIGH
+    - MEDIUM
+  
+  ignore-unfixed: false
+
+misconfiguration:  
+  scanners:
+    - dockerfile
+    - kubernetes
+    - helm
+    - terraform
+  
+  compliance:
+    - docker-cis
+  
+  policy:
+    - /home/claude/docker-hardening/trivy/policies/  
+
+secret:
+  config: /home/claude/docker-hardening/trivy/trivy-secret.yaml
+
+format: table
+
+output: ""
+
+exit-code: 1
+exit-on-eol: 1
+
+severity:
+  - CRITICAL
+  - HIGH

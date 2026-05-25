@@ -1,0 +1,68 @@
+{
+  "_comment": "Docker daemon.json - konfiguracja zabezpieczona zgodnie z CIS Docker Benchmark",
+
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3",
+    "labels": "service,environment",
+    "env": "APP_VERSION"
+  },
+
+  "live-restore": true,
+
+  "icc": false,
+
+  "no-new-privileges": true,
+
+  "userns-remap": "default",
+
+  "selinux-enabled": false,
+
+  "seccomp-profile": "/etc/docker/seccomp/custom-seccomp.json",
+
+  "default-runtime": "runc",
+
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 64000,
+      "Soft": 64000
+    },
+    "nproc": {
+      "Name": "nproc",
+      "Hard": 1024,
+      "Soft": 512
+    }
+  },
+
+  "storage-driver": "overlay2",
+  "storage-opts": [
+    "overlay2.override_kernel_check=true"
+  ],
+
+  "ip": "127.0.0.1",
+  "ip-forward": true,
+  "ip-masq": true,
+  "iptables": true,
+
+  "tls": true,
+  "tlscacert": "/etc/docker/certs/ca.pem",
+  "tlscert": "/etc/docker/certs/server-cert.pem",
+  "tlskey": "/etc/docker/certs/server-key.pem",
+  "tlsverify": true,
+
+  "hosts": ["unix:///var/run/docker.sock"],
+
+  "max-concurrent-downloads": 3,
+  "max-concurrent-uploads": 5,
+
+  "registry-mirrors": [],
+
+  "authorization-plugins": [],
+
+  "experimental": false,
+
+  "metrics-addr": "127.0.0.1:9323",
+  "experimental-metrics": false
+}

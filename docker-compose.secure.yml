@@ -1,0 +1,234 @@
+# docker-compose.secure.yml
+# Przykład bezpiecznego docker-compose zgodny z politykami Kyverno
+# Demonstruje wszystkie dobre praktyki bezpieczeństwa w jednym miejscu
+
+version: "3.9"
+
+# Domyślna konfiguracja bezpieczeństwa dla wszystkich serwisów
+x-security-defaults: &security-defaults
+  security_opt:
+    - no-new-privileges:true
+    - seccomp:./daemon/custom-seccomp.json
+    - apparmor:docker-default
+  read_only: true
+  cap_drop:
+    - ALL
+  restart: unless-stopped
+
+services:
+  # ============================================================
+  # Przykład 1: Serwis webowy - Python HTTP
+  # ============================================================
+  webapp:
+    <<: *security-defaults
+    build:
+      context: ./dockerfiles/secure
+      dockerfile: Dockerfile.good
+      # Argumenty budowania (nie sekrety!)
+      args:
+        BUILD_VERSION: "1.0.0"
+    image: myapp:1.0.0
+    container_name: webapp-secure
+
+    # Non-root user (zgodne z polityką Kyverno disallow-root-user)
+    user: "10001:10001"
+
+    ports:
+      - "127.0.0.1:8080:8080"  # Bind tylko na localhost!
+
+    # Limity zasobów (zgodne z polityką require-resource-limits)
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+
+    # Zmienne środowiskowe - NIE SEKRETY
+    environment:
+      - APP_ENV=production
+      - LOG_LEVEL=info
+      - PORT=8080
+      # NIGDY: DB_PASSWORD=... API_KEY=...
+
+    # Sekrety Docker (bezpieczne podejście)
+    secrets:
+      - db_password
+      - api_key
+
+    # Wolumeny - tylko tam gdzie potrzebny zapis
+    volumes:
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 52428800  # 50MB limit
+      - type: tmpfs
+        target: /app/tmp
+      - type: volume
+        source: app-logs
+        target: /app/logs
+        read_only: false
+
+    # Healthcheck (wymagane przez polityki)
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Konfiguracja sieci
+    networks:
+      - frontend
+
+    # Metadane
+    labels:
+      - "com.example.version=1.0.0"
+      - "com.example.description=Bezpieczna aplikacja webowa"
+      - "com.example.maintainer=security@example.com"
+
+  # ============================================================
+  # Przykład 2: Baza danych - PostgreSQL z hardening
+  # ============================================================
+  database:
+    <<: *security-defaults
+    image: postgres:16.2-alpine3.19  # Pinowana wersja!
+    container_name: database-secure
+
+    user: "70:70"  # postgres UID w Alpine
+
+    # Capabilities specyficzne dla PostgreSQL (minimum wymagane)
+    cap_add:
+      - SETUID  # Potrzebne do switch user przy starcie
+      - SETGID
+
+    environment:
+      - POSTGRES_DB=appdb
+      # Sekrety przez Docker secrets - nie ENV!
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+
+    secrets:
+      - db_password
+
+    volumes:
+      - type: volume
+        source: postgres-data
+        target: /var/lib/postgresql/data
+      - type: tmpfs
+        target: /tmp
+      - type: tmpfs
+        target: /run/postgresql
+
+    networks:
+      - backend
+
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.2"
+          memory: 128M
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Przykład 3: Reverse Proxy - Nginx
+  # ============================================================
+  proxy:
+    <<: *security-defaults
+    image: nginx:1.25.4-alpine3.18  # Pinowana wersja!
+    container_name: proxy-secure
+
+    user: "101:101"  # nginx user w Alpine
+
+    ports:
+      - "0.0.0.0:443:443"
+      - "0.0.0.0:80:80"
+
+    volumes:
+      - type: bind
+        source: ./nginx/nginx.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+      - type: bind
+        source: ./nginx/certs
+        target: /etc/nginx/certs
+        read_only: true
+      - type: tmpfs
+        target: /var/cache/nginx
+      - type: tmpfs
+        target: /var/run
+
+    networks:
+      - frontend
+
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 128M
+
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+# ============================================================
+# Konfiguracja sieci - izolacja
+# ============================================================
+networks:
+  frontend:
+    name: app-frontend
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"  # Wyłącz ICC
+
+  backend:
+    name: app-backend
+    driver: bridge
+    internal: true  # Sieć wewnętrzna - brak dostępu do internetu
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+
+# ============================================================
+# Wolumeny
+# ============================================================
+volumes:
+  postgres-data:
+    name: app-postgres-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/postgres  # Host path - zmień według potrzeb
+
+  app-logs:
+    name: app-logs
+    driver: local
+
+# ============================================================
+# Sekrety Docker (bezpieczne przechowywanie)
+# Wymagają: docker secret create db_password - <<< "your-password"
+# ============================================================
+secrets:
+  db_password:
+    external: true
+    name: app_db_password
+
+  api_key:
+    external: true
+    name: app_api_key

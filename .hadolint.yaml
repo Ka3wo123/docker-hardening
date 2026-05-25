@@ -1,0 +1,37 @@
+# .hadolint.yaml - Config file (Dockerfile linter)
+format: tty
+failure-threshold: warning
+trustedRegistries:
+  - docker.io
+  - docker.io/library  
+  - gcr.io
+  - ghcr.io
+
+shell: bash
+
+override:
+  error:
+    - DL3007  # Disallow :latest tag
+    - DL3025  # CMD should be JSON array
+    - DL4000  # MAINTAINER is obsolete
+    - DL4006  # Lack of pipefail in pipes
+  warning:    
+    - DL3002  # Switching USER to root in su
+    - DL3003  # WORKDIR vs cd
+    - DL3006  # Lack of tag in FROM
+    - DL3008  # apt-get without pinning
+    - DL3009  # Lack of clean apt-get
+    - DL3013  # pip without --no-cache-dir
+    - DL3014  # apt-get install -y 
+    - DL3015  # apt-get install recommends
+    - DL3016  # npm install without version
+    - DL3018  # apk add without --no-cache
+    - DL3019  # apk add without pinning
+    - DL3020  # Use COPY instead of ADD
+    - DL3028  # gem install without --no-document
+    - DL3042  # pip without --no-cache-dir
+    - DL3045  # COPY to root in multi-stage build
+    - DL3048  # Incorrect label
+    - DL3059  # Multiple RUN
+    - DL3060  # yum clean all
+    - SC1090  # ShellCheck: external source

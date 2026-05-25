@@ -1,0 +1,109 @@
+---
+# Polityka Kyverno: Wymuszanie podpisanych obrazów i zaufanych rejestrów
+# CIS Docker Benchmark 4.02 - Ensure that containers use only trusted base images
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-trusted-registry
+  annotations:
+    policies.kyverno.io/title: Wymagaj zaufanego rejestru obrazów
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod, Container, Image
+    policies.kyverno.io/description: >-
+      Obrazy kontenerów muszą pochodzić wyłącznie z zatwierdzonych rejestrów.
+      Blokuje użycie obrazów z niezaufanych źródeł (np. Docker Hub bez
+      organizacji, obrazy bez tagu wersji lub używające tagu 'latest').
+    audit-controls: "CIS-4.2, CIS-4.9, NIST-CM-7, SLSA-L2"
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: restrict-to-trusted-registries
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+      validate:
+        message: >-
+          Obraz musi pochodzić z zatwierdzonego rejestru.
+          Dozwolone rejestry: gcr.io/*, registry.example.com/*, ghcr.io/your-org/*.
+          Aktualne źródło: {{ request.object.spec.containers[].image }}
+        pattern:
+          spec:
+            containers:
+              - image: "gcr.io/* | registry.example.com/* | ghcr.io/your-org/* | quay.io/your-org/*"
+            =(initContainers):
+              - image: "gcr.io/* | registry.example.com/* | ghcr.io/your-org/* | quay.io/your-org/*"
+
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Użycie tagu 'latest' jest ZAKAZANE - nie gwarantuje reprodukowalności.
+          Użyj konkretnej wersji lub sha256 digest obrazu.
+          Przykład: image: myapp:1.2.3 lub image: myapp@sha256:abc123...
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.containers[].image }}"
+                operator: AnyIn
+                value:
+                  - "*:latest"
+                  - "*/latest"
+              - key: "{{ request.object.spec.initContainers[].image }}"
+                operator: AnyIn
+                value:
+                  - "*:latest"
+
+---
+# Polityka weryfikacji podpisów obrazów (Cosign/Sigstore)
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: Weryfikuj podpisy kryptograficzne obrazów
+    policies.kyverno.io/category: Supply Chain Security / Image Integrity
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >-
+      Wszystkie obrazy produkcyjne muszą być podpisane kryptograficznie
+      przy użyciu Cosign/Sigstore. Zapobiega to uruchamianiu niezweryfikowanych
+      lub potencjalnie zmodyfikowanych obrazów (supply chain attacks).
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: verify-cosign-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - production
+                - staging
+      verifyImages:
+        - imageReferences:
+            - "registry.example.com/*"
+          attestors:
+            - count: 1
+              entries:
+                - keyless:
+                    subject: "https://github.com/your-org/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev
+          mutateDigest: true
+          required: true

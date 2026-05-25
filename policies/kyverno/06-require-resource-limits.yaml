@@ -1,0 +1,104 @@
+---
+# Polityka Kyverno: Wymaganie limitów zasobów (resource limits)
+# CIS Docker Benchmark 5.10 - Ensure that memory usage for container is limited
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Wymagaj limitów zasobów CPU i pamięci
+    policies.kyverno.io/category: Resource Management / DoS Prevention
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod, Container
+    policies.kyverno.io/description: >-
+      Wszystkie kontenery MUSZĄ mieć zdefiniowane limity CPU i pamięci.
+      Brak limitów może prowadzić do ataków DoS przez wyczerpanie zasobów
+      i wpływać na inne usługi uruchomione na tym samym hoście.
+    audit-controls: "CIS-5.10, CIS-5.11, NIST-SI-16"
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-cpu-memory-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+      validate:
+        message: >-
+          Kontener MUSI mieć zdefiniowane limity zasobów.
+          Dodaj: resources.limits.cpu i resources.limits.memory.
+          Przykład: cpu: "500m", memory: "256Mi"
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+
+    - name: restrict-max-memory
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Limit pamięci nie może przekraczać 4Gi dla standardowych workloadów.
+          Skontaktuj się z zespołem platformy dla workloadów wymagających więcej zasobów.
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.containers[].resources.limits.memory }}"
+                operator: AnyGreaterThan
+                value: "4Gi"
+
+---
+# Polityka wymuszania security context na poziomie Pod
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-pod-security-context
+  annotations:
+    policies.kyverno.io/title: Wymagaj bezpiecznego kontekstu Pod
+    policies.kyverno.io/category: Pod Security Standards
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Pod-level security context musi być skonfigurowany z minimalnymi
+      wymaganiami bezpieczeństwa: runAsNonRoot, seccompProfile i fsGroup.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-pod-security-context
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Pod MUSI mieć skonfigurowany securityContext z:
+          - runAsNonRoot: true
+          - runAsUser: >= 1000
+          - fsGroup: != 0
+          - seccompProfile.type: RuntimeDefault lub Localhost
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: ">= 1000"
+              fsGroup: ">= 1"
+              seccompProfile:
+                type: "RuntimeDefault | Localhost"

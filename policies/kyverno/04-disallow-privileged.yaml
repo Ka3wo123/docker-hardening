@@ -1,0 +1,99 @@
+---
+# Polityka Kyverno: Blokowanie uprzywilejowanych kontenerów
+# CIS Docker Benchmark 5.04 - Ensure that privileged containers are not used
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+  annotations:
+    policies.kyverno.io/title: Blokuj uprzywilejowane kontenery
+    policies.kyverno.io/category: Pod Security / Docker Hardening
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/subject: Pod, Container
+    policies.kyverno.io/description: >-
+      Uprzywilejowany kontener (privileged: true) ma pełny dostęp do hosta,
+      co skutecznie uniemożliwia izolację. Jest to równoważne z uruchamianiem
+      procesu bezpośrednio na hoście z uprawnieniami root. ZAWSZE zakazane.
+    audit-controls: "CIS-5.4, NIST-AC-6, PCI-DSS-7.2"
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: disallow-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          KRYTYCZNE: Uprzywilejowane kontenery są ZAKAZANE!
+          securityContext.privileged NIE MOŻE być ustawione na true.
+          Kontenery uprzywilejowane mają pełny dostęp do systemu hosta.
+        pattern:
+          spec:
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): false
+            containers:
+              - =(securityContext):
+                  =(privileged): false
+
+    - name: disallow-host-pid
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Kontener NIE MOŻE używać przestrzeni nazw PID hosta (hostPID: true).
+          Daje to dostęp do wszystkich procesów hosta.
+        pattern:
+          spec:
+            =(hostPID): false
+
+    - name: disallow-host-network
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Kontener NIE MOŻE używać sieci hosta (hostNetwork: true).
+          Daje to pełny dostęp do interfejsów sieciowych hosta.
+        pattern:
+          spec:
+            =(hostNetwork): false
+
+    - name: disallow-host-ipc
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Kontener NIE MOŻE używać IPC przestrzeni hosta (hostIPC: true).
+          Umożliwia to dostęp do współdzielonej pamięci hosta.
+        pattern:
+          spec:
+            =(hostIPC): false
+
+    - name: disallow-allow-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          allowPrivilegeEscalation MUSI być ustawione na false.
+          Zapobiega to uzyskaniu wyższych uprawnień przez procesy potomne.
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false
