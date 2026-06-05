@@ -19,8 +19,7 @@ deny contains msg if {
     not regex.match(`apt-get install.*=`, arg)
 
     msg := sprintf(
-        "SECURITY [DS-001]: Packages should be installed with version pinning. "+
-        "Use: apt-get install package=version. Found: '%v'",
+        "SECURITY [DS-001]: Packages should be installed with version pinning. Use: apt-get install package=version. Found: '%v'",
         [arg]
     )
 }
@@ -42,8 +41,7 @@ deny contains msg if {
     not regex.match(`\$\{.*\}|\$[A-Z_]+`, env_pair)
 
     msg := sprintf(
-        "CRITICAL [DS-002]: Possible secret in ENV: '%v'. "+
-        "Use Docker secrets or time execution environment variables.",
+        "CRITICAL [DS-002]: Possible secret in ENV: '%v'. Use Docker secrets or time execution environment variables.",
         [env_pair]
     )
 }
@@ -67,8 +65,7 @@ deny contains msg if {
     val in {"root", "0", "0:0", "root:root"}
 
     msg := sprintf(
-        "HIGH [DS-003]: USER instruction sets user as root: '%v'. "+
-        "Use user with UID >= 1000.",
+        "HIGH [DS-003]: USER instruction sets user as root: '%v'. Use user with UID >= 1000.",
         [val]
     )
 }
@@ -95,8 +92,7 @@ deny contains msg if {
     not regex.match(`\.tar\.(gz|bz2|xz)$`, src)
 
     msg := sprintf(
-        "LOW [DS-005]: Use COPY instead of ADD for local files: '%v'. "+
-        "ADD could have unexpected behaviour. ADD is allowed only for URL and tar.",
+        "LOW [DS-005]: Use COPY instead of ADD for local files: '%v'. ADD could have unexpected behaviour. ADD is allowed only for URL and tar.",
         [src]
     )
 }
@@ -109,8 +105,7 @@ deny contains msg if {
     endswith(image, ":latest")
 
     msg := sprintf(
-        "HIGH [DS-006]: Base image uses latest tag: '%v'. "+
-        "Use specific version or sha256 digest for reproducible builds.",
+        "HIGH [DS-006]: Base image uses latest tag: '%v'. Use specific version or sha256 digest for reproducible builds.",
         [image]
     )
 }
@@ -135,8 +130,7 @@ deny contains msg if {
     regex.match(`curl\s+(-k|--insecure)`, arg)
 
     msg := sprintf(
-        "HIGH [DS-008]: curl without SSL (-k/--insecure): '%v'. "+
-        "Delete flag -k and import appropiate CA certificate.",
+        "HIGH [DS-008]: curl without SSL (-k/--insecure): '%v'. Delete flag -k and import appropiate CA certificate.",
         [arg]
     )
 }
@@ -165,8 +159,7 @@ deny contains msg if {
     not regex.match(`(rm -rf /var/lib/apt|apt-get clean|apt-get autoremove)`, arg)
 
     msg := sprintf(
-        "MEDIUM [DS-010]: apt-get install without cache clean: '%v'. "+
-        "Add: && rm -rf /var/lib/apt/lists/* after installation.",
+        "MEDIUM [DS-010]: apt-get install without cache clean: '%v'. Add: && rm -rf /var/lib/apt/lists/* after installation.",
         [arg]
     )
 }
