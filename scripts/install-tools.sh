@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-RED='\033;31m'
-GREEN='\033;32m'
+RED='\033[;31m'
+GREEN='\033[;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
@@ -53,9 +53,20 @@ install_hadolint() {
         macos)
             brew install hadolint
             ;;
-        archlinux)
-            # W Arch Linux hadolint jest w oficjalnym repozytorium extra
-            sudo pacman -S --noconfirm hadolint
+        archlinux)            
+            sudo pacman -S --needed --noconfirm base-devel git
+            
+            local current_dir=$(pwd)
+            
+            cd /tmp
+            rm -rf hadolint-bin
+            git clone https://aur.archlinux.org/hadolint-bin.git
+            cd hadolint-bin
+        
+            makepkg -si --noconfirm
+            
+            cd "$current_dir"
+            rm -rf /tmp/hadolint-bin
             ;;
         debian|alpine|rhel)
             local arch_suffix="x86_64"

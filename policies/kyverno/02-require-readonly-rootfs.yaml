@@ -13,10 +13,9 @@ metadata:
     policies.kyverno.io/subject: Pod, Container
     policies.kyverno.io/minversion: 1.6.0
     policies.kyverno.io/description: >-
-      System plików kontenera powinien być zamontowany jako read-only (readOnlyRootFilesystem: true).
-      Zapobiega to modyfikacji systemu plików przez potencjalnie złośliwy kod.
-      Aplikacje które potrzebują zapisu powinny używać emptyDir lub PersistentVolumes
-      dla konkretnych ścieżek.
+      Filesystem in container should be mounted as read-only (readOnlyRootFilesystem: true).
+      It prevents modifications on filesystem by malware.      
+      Appliactions that need write data should use emptyDir or PersistentVolumes for specific paths.
     audit-controls: "CIS-5.12, NIST-CM-7, PCI-DSS-6.6"
 spec:
   validationFailureAction: Enforce
@@ -36,9 +35,9 @@ spec:
                 - cert-manager
       validate:
         message: >-
-          Kontener MUSI mieć read-only root filesystem.
-          Dodaj: securityContext.readOnlyRootFilesystem: true
-          Dla zapisu danych użyj volumeMounts z emptyDir lub PVC.
+          Container MUST contains read-only root filesystem.
+          Add: securityContext.readOnlyRootFilesystem: true
+          If writting data needed use volumeMounts with emptyDir or PVC.
         pattern:
           spec:
             containers:

@@ -1,5 +1,5 @@
 {
-  "_comment": "Docker daemon.json - konfiguracja zabezpieczona zgodnie z CIS Docker Benchmark",
+  "_comment": "Docker daemon.json - configuration secured according to CIS Docker Benchmark",
 
   "log-driver": "json-file",
   "log-opts": {

@@ -1,5 +1,5 @@
 ---
-# Polityka Kyverno: Blokowanie uprzywilejowanych kontenerów
+# Kyverno policy: Blocking privileged containers.
 # CIS Docker Benchmark 5.04 - Ensure that privileged containers are not used
 
 apiVersion: kyverno.io/v1
@@ -7,14 +7,13 @@ kind: ClusterPolicy
 metadata:
   name: disallow-privileged-containers
   annotations:
-    policies.kyverno.io/title: Blokuj uprzywilejowane kontenery
+    policies.kyverno.io/title: Block privileged containers
     policies.kyverno.io/category: Pod Security / Docker Hardening
     policies.kyverno.io/severity: critical
     policies.kyverno.io/subject: Pod, Container
     policies.kyverno.io/description: >-
-      Uprzywilejowany kontener (privileged: true) ma pełny dostęp do hosta,
-      co skutecznie uniemożliwia izolację. Jest to równoważne z uruchamianiem
-      procesu bezpośrednio na hoście z uprawnieniami root. ZAWSZE zakazane.
+      Privileged container has full access to host and isolation is not possible.
+      Equal to launching process directly on host with root privileges. ALWAYS forbidden.
     audit-controls: "CIS-5.4, NIST-AC-6, PCI-DSS-7.2"
 spec:
   validationFailureAction: Enforce
@@ -28,9 +27,9 @@ spec:
                 - Pod
       validate:
         message: >-
-          KRYTYCZNE: Uprzywilejowane kontenery są ZAKAZANE!
-          securityContext.privileged NIE MOŻE być ustawione na true.
-          Kontenery uprzywilejowane mają pełny dostęp do systemu hosta.
+          CRITICAL: Privileged containers are FORBIDDEN!
+          securityContext.privileged MUST NOT be set true.
+          Privileged containers has full access to host system.
         pattern:
           spec:
             =(initContainers):
@@ -48,8 +47,8 @@ spec:
                 - Pod
       validate:
         message: >-
-          Kontener NIE MOŻE używać przestrzeni nazw PID hosta (hostPID: true).
-          Daje to dostęp do wszystkich procesów hosta.
+          Container MUST NOT use host's PID namespace (hostPID: true).
+          It grants full access to all host processes.
         pattern:
           spec:
             =(hostPID): false
@@ -62,8 +61,8 @@ spec:
                 - Pod
       validate:
         message: >-
-          Kontener NIE MOŻE używać sieci hosta (hostNetwork: true).
-          Daje to pełny dostęp do interfejsów sieciowych hosta.
+          Container MUST NOT use host's network (hostNetwork: true).
+          It grants full access to all host network interfaces.
         pattern:
           spec:
             =(hostNetwork): false
@@ -76,8 +75,8 @@ spec:
                 - Pod
       validate:
         message: >-
-          Kontener NIE MOŻE używać IPC przestrzeni hosta (hostIPC: true).
-          Umożliwia to dostęp do współdzielonej pamięci hosta.
+          Container MUST NOT use IPC host space (hostIPC: true).
+          It grants full access to host shared memory.
         pattern:
           spec:
             =(hostIPC): false
@@ -90,8 +89,8 @@ spec:
                 - Pod
       validate:
         message: >-
-          allowPrivilegeEscalation MUSI być ustawione na false.
-          Zapobiega to uzyskaniu wyższych uprawnień przez procesy potomne.
+          allowPrivilegeEscalation MUST be set false.
+          It prevents privilege escalation by subprocess.
         pattern:
           spec:
             containers:

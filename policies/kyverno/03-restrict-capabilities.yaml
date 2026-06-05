@@ -1,5 +1,5 @@
 ---
-# Polityka Kyverno: Ograniczenie Linux Capabilities w kontenerach
+# Kyverno Policy: Restricting Linux Capabilities in containers
 # CIS Docker Benchmark 5.03 - Ensure that Linux kernel capabilities are restricted within containers
 
 apiVersion: kyverno.io/v1
@@ -7,15 +7,14 @@ kind: ClusterPolicy
 metadata:
   name: restrict-capabilities
   annotations:
-    policies.kyverno.io/title: Ogranicz Linux Capabilities
+    policies.kyverno.io/title: Restrict Linux Capabilities
     policies.kyverno.io/category: Docker Security Best Practices
     policies.kyverno.io/severity: critical
     policies.kyverno.io/subject: Pod, Container
     policies.kyverno.io/minversion: 1.6.0
     policies.kyverno.io/description: >-
-      Linux capabilities dają uprzywilejowany dostęp do zasobów kernela.
-      Kontenery powinny mieć zrzucone (drop) ALL capabilities i dodawać (add)
-      tylko te absolutnie niezbędne. Szczególnie niebezpieczne capabilities:
+      Linux capabilities gain privileged access to kernel resources.
+      Containers should drop ALL capabilities and add only required. Most dangerous capabilities:
       SYS_ADMIN, NET_ADMIN, SYS_PTRACE, DAC_OVERRIDE.
     audit-controls: "CIS-5.3, NIST-AC-6, PCI-DSS-6.3"
 spec:
@@ -30,8 +29,8 @@ spec:
                 - Pod
       validate:
         message: >-
-          Kontener MUSI jawnie zrzucić ALL capabilities.
-          Dodaj: securityContext.capabilities.drop: [ALL]
+          Container MUST explicitly drop ALL capabilities.
+          Add: securityContext.capabilities.drop: [ALL]
         pattern:
           spec:
             containers:
@@ -53,10 +52,10 @@ spec:
                 - Pod
       validate:
         message: >-
-          Wykryto niebezpieczne capabilities! Następujące capabilities są ZAKAZANE:
+          Detected dangerous capabilities! Following capabilities are FORBIDDEN:
           SYS_ADMIN, NET_ADMIN, SYS_PTRACE, SYS_MODULE, DAC_OVERRIDE,
           DAC_READ_SEARCH, FOWNER, SETUID, SETGID, NET_RAW, SYS_RAWIO.
-          Sprawdź: securityContext.capabilities.add w definicji kontenera.
+          Check: securityContext.capabilities.add in container definition.
         deny:
           conditions:
             any:
@@ -93,8 +92,8 @@ spec:
                 - Pod
       validate:
         message: >-
-          Tylko zatwierdzone capabilities są dozwolone: NET_BIND_SERVICE, CHOWN, SETPCAP.
-          Wszystkie inne muszą być jawnie usunięte przez drop: ALL.
+          Only confirmed capabilities are allowed: NET_BIND_SERVICE, CHOWN, SETPCAP.
+          All the others must be explicitly dropped via: ALL.          
         pattern:
           spec:
             containers:

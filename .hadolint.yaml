@@ -6,6 +6,7 @@ trustedRegistries:
   - docker.io/library  
   - gcr.io
   - ghcr.io
+  - dhi.io
 
 shell: bash
 

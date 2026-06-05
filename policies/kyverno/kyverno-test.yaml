@@ -1,0 +1,27 @@
+apiVersion: kyverno.io/v2
+kind: UTResult
+metadata:
+  name: secure-app-test
+policies:
+    - 01-disallow-root-user.yaml
+    - 02-require-readonly-rootfs.yaml
+    - 03-restrict-capabilities.yaml
+    - 04-disallow-privileged.yaml
+    - 05-require-trusted-registry.yaml
+    - 06-require-resource-limits.yaml
+resources:
+  - ../../dockerfiles/insecure/bad-pod.yaml
+  - ../../dockerfiles/secure/good-pod.yaml
+results:
+  - policy: disallow-root-user 
+    rule: check-root-user      
+    kind: Pod
+    resources:
+      - insecure-app    
+    result: fail
+  - policy: disallow-root-user 
+    rule: check-root-user      
+    kind: Pod
+    resources:
+      - secure-app    
+    result: pass

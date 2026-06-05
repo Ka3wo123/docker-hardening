@@ -608,6 +608,50 @@ with open('$policy_file') as f:
     fi
 }
 
+run_kyverno_runtime_validation() {
+    print_section "7b. Kyverno - Runtime validation"
+
+    local policies_dir="$PROJECT_DIR/policies/kyverno"
+    local test_file="$policies_dir/kyverno-test.yaml"
+
+    if ! command -v kyverno &>/dev/null; then
+        check_result "Kyverno CLI not installed - skipping" "warn"
+        return 0
+    fi
+
+    if [[ ! -f "$test_file" ]]; then
+        check_result "No test file for Kyverno ($test_file)" "warn" \
+            "Create kyverno-test.yaml file to automate testing according to policies."
+        return 0
+    fi
+
+    echo -e "  ${BLUE}Launching Kyverno simulation (Dry-run for cluster)...${NC}"
+    echo ""
+
+    local output
+    local exit_code=0
+    
+    output=$(kyverno test "$policies_dir" 2>&1) && exit_code=$? || exit_code=$?
+
+    if [[ $exit_code -eq 0 ]]; then
+        check_result "Kyverno simulation: All pods are compliant with security policies" "pass"
+        echo -e "    ${GREEN}$output${NC}"
+    else
+        check_result "Kyverno simulation: Some pods behaved differently as not expected!" "fail"
+        echo ""
+        echo "$output" | while IFS= read -r line; do
+            if echo "$line" | grep -q "Fail"; then
+                echo -e "    ${RED}$line${NC}"
+            elif echo "$line" | grep -q "Pass"; then
+                echo -e "    ${GREEN}$line${NC}"
+            else
+                echo -e "    $line"
+            fi
+        done
+        echo ""
+    fi
+}
+
 generate_report() {
     print_section "8. Security report summary"
 
@@ -673,6 +717,7 @@ main() {
     validate_daemon_json
     check_runtime_security
     check_kyverno_policies
+    run_kyverno_runtime_validation
     generate_report
 }
 

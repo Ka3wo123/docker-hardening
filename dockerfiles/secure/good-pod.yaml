@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secure-app
+  namespace: default
+  labels:
+    app: secure-app
+spec:  
+  securityContext:
+    runAsNonRoot: true 
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+      
+  containers:
+    - name: app-container
+      image: docker.io/library/python:3.12.3-slim-bookworm 
+      command: ["python3", "-m", "http.server", "8080"]
+      
+      resources:
+        limits:
+          cpu: "500m"
+          memory: "256Mi"
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+          
+      securityContext:
+        privileged: false
+        allowPrivilegeEscalation: false
+        readOnlyRootfs: true           
+        capabilities:
+          drop:
+            - ALL
+            
+      volumeMounts:
+        - name: tmp-volume
+          mountPath: /app/tmp
+          
+  volumes:
+    - name: tmp-volume
+      emptyDir: {}

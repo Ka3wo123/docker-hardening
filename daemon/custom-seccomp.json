@@ -1,5 +1,5 @@
 {
-  "_comment": "Customowy profil seccomp - ogranicza syscalls dostępne dla kontenerów",
+  "_comment": "Custom seccomp profile - restricts syscalls available to containers",
   "defaultAction": "SCMP_ACT_ERRNO",
   "defaultErrnoRet": 1,
   "archMap": [
@@ -82,7 +82,7 @@
       "action": "SCMP_ACT_ALLOW"
     },
     {
-      "_comment": "Blokowane syscalls - niebezpieczne operacje kernelowe",
+      "_comment": "Syscalls blocking - dangerous kernel operations",
       "names": [
         "acct", "add_key", "bpf", "clock_adjtime", "clone3",
         "create_module", "delete_module", "finit_module", "get_kernel_syms",
