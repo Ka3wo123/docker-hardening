@@ -3,16 +3,19 @@ kind: UTResult
 metadata:
   name: secure-app-test
 policies:
-    - 01-disallow-root-user.yaml
-    - 02-require-readonly-rootfs.yaml
-    - 03-restrict-capabilities.yaml
-    - 04-disallow-privileged.yaml
-    - 05-require-trusted-registry.yaml
-    - 06-require-resource-limits.yaml
+  - 01-disallow-root-user.yaml
+  - 02-require-readonly-rootfs.yaml
+  - 03-restrict-capabilities.yaml
+  - 04-disallow-privileged.yaml
+  - 05-require-trusted-registry.yaml
+  - 06-require-resource-limits.yaml
 resources:
   - ../../dockerfiles/insecure/bad-pod.yaml
   - ../../dockerfiles/secure/good-pod.yaml
 results:
+  # ============================================================
+  # POLICY 01: disallow-root-user
+  # ============================================================
   - policy: disallow-root-user 
     rule: check-root-user      
     kind: Pod
@@ -24,4 +27,74 @@ results:
     kind: Pod
     resources:
       - secure-app    
+    result: pass
+
+  # ============================================================
+  # POLICY 02: require-readonly-rootfs
+  # ============================================================
+  - policy: require-readonly-rootfs
+    rule: check-readonly-rootfs
+    kind: Pod
+    resources:
+      - insecure-app
+    result: fail
+  - policy: require-readonly-rootfs
+    rule: check-readonly-rootfs
+    kind: Pod
+    resources:
+      - secure-app
+    result: pass
+
+  # ============================================================
+  # POLICY 03: restrict-capabilities
+  # ============================================================
+  - policy: restrict-capabilities
+    rule: check-capabilities
+    kind: Pod
+    resources:
+      - insecure-app
+    result: fail
+  - policy: restrict-capabilities
+    rule: check-capabilities
+    kind: Pod
+    resources:
+      - secure-app
+    result: pass
+
+  # ============================================================
+  # POLICY 04: disallow-privileged
+  # ============================================================
+  - policy: disallow-privileged-containers
+    rule: disallow-privileged
+    kind: Pod
+    resources:
+      - insecure-app
+    result: fail
+  - policy: disallow-privileged-containers
+    rule: disallow-privileged
+    kind: Pod
+    resources:
+      - secure-app
+    result: pass
+  - policy: disallow-privileged-containers
+    rule: disallow-host-pid
+    kind: Pod
+    resources:
+      - secure-app
+    result: pass
+
+  # ============================================================
+  # POLICY 05: require-trusted-registry
+  # ============================================================
+  - policy: require-trusted-registry
+    rule: check-registry
+    kind: Pod
+    resources:
+      - insecure-app
+    result: fail
+  - policy: require-trusted-registry
+    rule: check-registry
+    kind: Pod
+    resources:
+      - secure-app
     result: pass

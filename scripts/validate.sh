@@ -634,7 +634,7 @@ run_kyverno_runtime_validation() {
     output=$(kyverno test "$policies_dir" 2>&1) && exit_code=$? || exit_code=$?
 
     if [[ $exit_code -eq 0 ]]; then
-        check_result "Kyverno simulation: All pods are compliant with security policies" "pass"
+        check_result "Kyverno simulation: All pods behaved as expected with security policies" "pass"
         echo -e "    ${GREEN}$output${NC}"
     else
         check_result "Kyverno simulation: Some pods behaved differently as not expected!" "fail"
